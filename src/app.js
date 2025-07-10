@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
-import healthcheckRouter from "./routes/healthcheck.routes.js"
+import healthcheckRouter from "./routes/healthcheck.routes.js";
+import caRouter from "./routes/ca.routes.js";
 
 const app = express();
 
@@ -19,7 +20,8 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-// routes 
+// routes
 app.use("/api/v1/healthcheck", healthcheckRouter);
+app.use("/api/v1/ca", caRouter);
 
 export { app };
