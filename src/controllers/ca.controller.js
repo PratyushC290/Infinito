@@ -1,7 +1,4 @@
-import { Ca } from "../models/Ca.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
-
-import { Ca } from "../models/Ca.js";
+import { Ca } from "../models/ca.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const applyForCa = asyncHandler(async (req, res) => {
