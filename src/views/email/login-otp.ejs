@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Verification - <%= companyName %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .message {
+            font-size: 16px;
+            margin-bottom: 30px;
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        .login-info {
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .login-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .login-details strong {
+            color: #28a745;
+        }
+        
+        .otp-section {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .otp-box {
+            background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+            border: 2px dashed #28a745;
+            border-radius: 15px;
+            padding: 30px;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        
+        .otp-code {
+            font-size: 42px;
+            font-weight: bold;
+            color: #28a745;
+            letter-spacing: 12px;
+            font-family: 'Courier New', monospace;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .otp-label {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .security-alert {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .alert-icon {
+            font-size: 24px;
+            margin-right: 15px;
+            margin-top: 2px;
+        }
+        
+        .alert-content {
+            flex: 1;
+        }
+        
+        .alert-content h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .alert-content p {
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 5px 0;
+        }
+        
+        .not-you-section {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .not-you-section h3 {
+            color: #721c24;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .not-you-section p {
+            color: #721c24;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .security-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .footer p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .footer a {
+            color: #28a745;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .device-info {
+            font-size: 12px;
+            color: #999;
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 5px;
+            }
+            
+            .header, .content, .footer {
+                padding: 20px;
+            }
+            
+            .otp-code {
+                font-size: 32px;
+                letter-spacing: 8px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .login-details {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>🔐 Login Verification</h1>
+            <p>Secure access to your account</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Hello <%= fullname %>! 👤
+            </div>
+            
+            <div class="message">
+                We received a login request for your <%= companyName %> account. To ensure the security of your account, 
+                please verify this login attempt using the verification code below.
+            </div>
+            
+            <div class="login-info">
+                <h3 style="color: #28a745; margin-bottom: 15px;">📋 Login Attempt Details:</h3>
+                <div class="login-details">
+                    <span><strong>Email:</strong> <%= email %></span>
+                </div>
+                <div class="login-details">
+                    <span><strong>Time:</strong> <%= new Date().toLocaleString() %></span>
+                </div>
+                <div class="login-details">
+                    <span><strong>Request Type:</strong> OTP Login</span>
+                </div>
+            </div>
+            
+            <div class="otp-section">
+                <div class="otp-label">Your Login Verification Code</div>
+                <div class="otp-box">
+                    <div class="otp-code"><%= otp %></div>
+                </div>
+            </div>
+            
+            <div class="security-alert">
+                <div class="alert-icon">🛡️</div>
+                <div class="alert-content">
+                    <h3>Security Information</h3>
+                    <p><strong>Expires in:</strong> <%= expirationTime %> minutes</p>
+                    <p><strong>Valid for:</strong> One-time use only</p>
+                    <p><strong>Keep secure:</strong> Never share this code with anyone</p>
+                </div>
+            </div>
+            
+            <div class="not-you-section">
+                <h3>🚨 Wasn't you trying to log in?</h3>
+                <p>If you didn't request this login code, your account may be at risk.</p>
+                <a href="mailto:<%= supportEmail %>?subject=Suspicious Login Activity" class="security-btn">
+                    Report Suspicious Activity
+                </a>
+            </div>
+            
+            <div class="message">
+                <strong>Important:</strong> Enter this code only on the official <%= companyName %> website. 
+                Our team will never ask for your verification code via phone, email, or any other method.
+            </div>
+            
+            <div class="device-info">
+                <strong>Security Tip:</strong> Always verify the URL in your browser before entering any codes. 
+                Look for the secure lock icon and ensure you're on the correct domain.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Need assistance? Contact our security team at <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a></p>
+            <p>This verification code was sent to <strong><%= email %></strong></p>
+            <p>&copy; <%= currentYear %> <%= companyName %>. All rights reserved.</p>
+            
+            <p style="margin-top: 20px; font-size: 12px; color: #999;">
+                This is an automated security email. Please do not reply to this message.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

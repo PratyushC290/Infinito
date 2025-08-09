@@ -17,3 +17,10 @@ connectDB()
   .catch((err) => {
     console.log("MongoDB connection error ", err);
   });
+
+app.set('view engine', 'ejs');
+app.set('views', './views');
+
+app.get('/verify', (req, res) => {
+  res.render('verify');
+});

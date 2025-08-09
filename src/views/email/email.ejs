@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Email Verification</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
+                }
+                .container {
+                    background: white;
+                    padding: 40px;
+                    border-radius: 15px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                    max-width: 500px;
+                    width: 100%;
+                    text-align: center;
+                }
+                .step {
+                    display: none;
+                }
+                .step.active {
+                    display: block;
+                }
+                h1 { color: #333; margin-bottom: 20px; }
+                .form-group { margin-bottom: 20px; text-align: left; }
+                label { display: block; margin-bottom: 8px; color: #333; font-weight: 500; }
+                input[type="email"], input[type="text"] {
+                    width: 100%;
+                    padding: 15px;
+                    border: 2px solid #e1e5e9;
+                    border-radius: 8px;
+                    font-size: 16px;
+                }
+                .otp-input {
+                    text-align: center;
+                    font-size: 24px;
+                    letter-spacing: 8px;
+                    font-family: 'Courier New', monospace;
+                }
+                .btn {
+                    width: 100%;
+                    padding: 15px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                }
+                .btn:hover { transform: translateY(-2px); }
+                .message {
+                    margin-top: 20px;
+                    padding: 15px;
+                    border-radius: 8px;
+                    font-weight: 500;
+                }
+                .success { background-color: #d4edda; color: #155724; }
+                .error { background-color: #f8d7da; color: #721c24; }
+                .info { background-color: #d1ecf1; color: #0c5460; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <!-- Step 1: Enter Email -->
+                <div id="step1" class="step active">
+                    <h1>📧 Verify Your Email</h1>
+                    <p style="color: #666; margin-bottom: 30px;">Enter your email address to receive a verification code</p>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address:</label>
+                        <input type="email" id="email" placeholder="Enter your email" required>
+                    </div>
+                    
+                    <button class="btn" onclick="sendOTP()">Send Verification Code</button>
+                    <div id="message1"></div>
+                </div>
+                
+                <!-- Step 2: Enter OTP -->
+                <div id="step2" class="step">
+                    <h1>🔐 Enter Verification Code</h1>
+                    <p style="color: #666; margin-bottom: 30px;">We've sent a 6-digit code to <span id="emailDisplay"></span></p>
+                    
+                    <div class="form-group">
+                        <label for="otp">Verification Code:</label>
+                        <input type="text" id="otp" class="otp-input" maxlength="6" placeholder="000000" required>
+                    </div>
+                    
+                    <button class="btn" onclick="verifyOTPCode()">Verify Code</button>
+                    <div id="message2"></div>
+                    
+                    <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                        Didn't receive the code? 
+                        <a href="#" onclick="resendOTP()" style="color: #667eea;">Resend Code</a>
+                    </p>
+                </div>
+                
+                <!-- Step 3: Success -->
+                <div id="step3" class="step">
+                    <div style="font-size: 80px; color: #28a745; margin-bottom: 20px;">✅</div>
+                    <h1 style="color: #28a745;">Email Verified!</h1>
+                    <p style="color: #666;">Your email address has been successfully verified.</p>
+                </div>
+            </div>
+            
+            <script>
+                let currentEmail = '';
+                
+                async function sendOTP() {
+                    const email = document.getElementById('email').value;
+                    const messageDiv = document.getElementById('message1');
+                    
+                    if (!email) {
+                        messageDiv.innerHTML = '<div class="message error">Please enter your email address</div>';
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/send-otp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            currentEmail = email;
+                            document.getElementById('emailDisplay').textContent = email;
+                            showStep(2);
+                            messageDiv.innerHTML = '<div class="message success">✅ Verification code sent to your email!</div>';
+                        } else {
+                            messageDiv.innerHTML = '<div class="message error">❌ ' + result.message + '</div>';
+                        }
+                    } catch (error) {
+                        messageDiv.innerHTML = '<div class="message error">❌ Failed to send verification code</div>';
+                    }
+                }
+                
+                async function verifyOTPCode() {
+                    const otp = document.getElementById('otp').value;
+                    const messageDiv = document.getElementById('message2');
+                    
+                    if (!otp || otp.length !== 6) {
+                        messageDiv.innerHTML = '<div class="message error">Please enter a 6-digit code</div>';
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/verify-otp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: currentEmail, otp })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            showStep(3);
+                        } else {
+                            messageDiv.innerHTML = '<div class="message error">❌ ' + result.message + '</div>';
+                        }
+                    } catch (error) {
+                        messageDiv.innerHTML = '<div class="message error">❌ Verification failed</div>';
+                    }
+                }
+                
+                async function resendOTP() {
+                    document.getElementById('message2').innerHTML = '<div class="message info">📤 Sending new code...</div>';
+                    await sendOTP();
+                }
+                
+                function showStep(stepNum) {
+                    document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+                    document.getElementById('step' + stepNum).classList.add('active');
+                }
+                
+                // Auto-format OTP input
+                document.getElementById('otp').addEventListener('input', function(e) {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                });
+            </script>
+        </body>
+        </html>

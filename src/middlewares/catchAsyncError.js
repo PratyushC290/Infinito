@@ -1,7 +1,3 @@
-const catchAsyncError = (fn) => {
-    return function(req, res, next) {
-        fn(req, res, next).catch(next);
-    };
+export const CatchAsyncErrror = (theFunc) => (req, res, next) => {
+    Promise.resolve(theFunc(req, res, next)).catch(next);
 };
-
-export default wrapAsync;
