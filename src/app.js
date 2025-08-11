@@ -7,13 +7,14 @@ import session from "express-session";
 // Import routes
 import healthcheckRouter from "./routes/healthcheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
+import caRouter from "./routes/ca.routes.js";
 
 const app = express();
 
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
 
     // origin: '*',
     credentials: true,
@@ -63,6 +64,8 @@ app.use((req, res, next) => {
 // Routes
 app.use("/api/v1/healthcheck", healthcheckRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/ca", caRouter);
+
 
 // Root route
 app.get("/", (req, res) => {
