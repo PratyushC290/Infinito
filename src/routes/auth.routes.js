@@ -6,11 +6,15 @@ import {
     login,
     loginWithOTP,
     logout,
-    resendOTP
+    resendOTP,
+    // googleLogin // Add this import
 } from '../controllers/auth.controller.js';
 import { verifyToken } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
+
+// Google OAuth route
+// router.post('/google-login', googleLogin);
 
 // Signup routes
 router.post('/signup/send-otp', sendSignupOTP);
