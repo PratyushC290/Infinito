@@ -1,4 +1,5 @@
 import express from 'express';
+import { googleLogin } from "../controllers/auth.controller.js";
 import {
     sendSignupOTP,
     verifySignupOTP,
@@ -15,6 +16,8 @@ const router = express.Router();
 
 // Google OAuth route
 // router.post('/google-login', googleLogin);
+
+router.post("/google-login", googleLogin);
 
 // Signup routes
 router.post('/signup/send-otp', sendSignupOTP);

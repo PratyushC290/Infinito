@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
+import crypto from 'crypto';
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
 import { CatchAsyncErrror } from "../middlewares/catchAsyncError.js";
 import { sendOTPEmail, isIITPEmail } from "../utils/emailService.js";
-
+import { OAuth2Client } from "google-auth-library";
+import { sendEmail } from '../utils/sendEmailGoogleAuth.js'
 // In-memory OTP storage (use Redis in production)
 const otpStorage = new Map();
 
@@ -578,10 +580,166 @@ export const resendOTP = CatchAsyncErrror(async (req, res, next) => {
             req.body.email = normalizedEmail; // Use normalized email
             return await sendLoginOTP(req, res, next);
         }
-
+        
         return next(new ErrorHandler("Invalid OTP type", 400));
-
+        
     } catch (error) {
         return next(new ErrorHandler(error.message, 500));
+    }
+});
+
+
+
+const client = new OAuth2Client({
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: process.env.GOOGLE_CALLBACK_URL
+});
+
+
+export const googleLogin = CatchAsyncErrror(async (req, res, next) => {
+    try {
+        const { credential } = req.body;
+        // console.log(req.body)
+        // console.log(credential)
+        
+        if (!credential) {
+            return next(new ErrorHandler("Google credential is required", 400));
+        }
+
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        
+        
+        const payload = ticket.getPayload();
+        console.log("\n\n\n helloo. adfa. ",payload)
+        
+        if (!payload) {
+            return next(new ErrorHandler("Invalid Google token", 400));
+        }
+
+        const { email, name, email_verified, picture } = payload;
+        
+        if (!email_verified) {
+            return next(new ErrorHandler("Please use a verified Google account", 400));
+        }
+
+        let user = await User.findOne({ email: email.toLowerCase() });
+        
+        if (!user) {
+            // Generate unique username
+            let baseUsername = name.replace(/\s+/g, '').toLowerCase();
+            let username = baseUsername;
+            let counter = 1;
+            const tempPassword = crypto.randomBytes(8).toString('hex');
+            const hashedPassword = await bcrypt.hash(tempPassword, Number(process.env.SALT_ROUNDS) || 12);
+
+            
+            // Check if username exists and create unique one
+            while (await User.findOne({ username })) {
+                username = `${baseUsername}${counter}`;
+                counter++;
+            }
+
+            // Auto-detect if it's an IITP email
+            const isIITPStudent = isIITPEmail(email);
+
+            user = await User.create({
+                username,
+                email: email.toLowerCase(),
+                fullname: name,
+                isEmailVerified: true, // Google emails are pre-verified
+                role: "user",
+                collegeName: isIITPStudent ? 'IIT Patna' : '',
+                isIITPStud: isIITPStudent,
+                password: hashedPassword,
+                authProvider: 'google',
+                googleId: payload.sub
+            });
+            await sendEmail({
+                     to: email,
+                    subject: "Your Temporary Password",
+                    html: `<p>Hello ${name},</p>
+                    <p>We’ve created a temporary password for your account:</p>
+                    <p><b>${tempPassword}</b></p>
+                    <p>Please log in and change it as soon as possible.</p>`
+            });
+
+            
+
+
+            console.log(`🆕 New Google user created: ${email} (IITP: ${isIITPStudent})`);
+        }else {
+            // Update existing user's Google info if needed
+            if (!user.googleId) {
+                user.googleId = payload.sub;
+                user.authProvider = user.authProvider || 'google';
+                await user.save({ validateBeforeSave: false });
+            }
+            
+            console.log(`✅ Existing Google user logged in: ${email}`);
+        }
+
+        const accessToken = jwt.sign(
+            { userId: user._id },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: "15m" }
+        );
+
+        const refreshToken = jwt.sign(
+            { userId: user._id },
+            process.env.REFRESH_TOKEN_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave: false });
+
+        const userResponse = {
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            fullname: user.fullname,
+            role: user.role,
+            isEmailVerified: user.isEmailVerified,
+            collegeName: user.collegeName,
+            rollNo: user.rollNo,
+            isIITPStud: user.isIITPStud,
+            score: user.score
+        };
+
+        const welcomeMessage = user.isIITPStud 
+            ? "Welcome, IITP student!" 
+            : "Google login successful";
+
+        res.status(200)
+            .cookie("accessToken", accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                maxAge: 15 * 60 * 1000 // 15 minutes
+            })
+            .cookie("refreshToken", refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            })
+            .json({
+                success: true,
+                message: welcomeMessage,
+                user: userResponse,
+                accessToken
+            });
+
+    } catch (error) {
+        console.error("Google login error:", error);
+        if (error.message.includes('Token used too early')) {
+            return next(new ErrorHandler("Invalid Google token timing", 400));
+        }
+        if (error.message.includes('Invalid token')) {
+            return next(new ErrorHandler("Invalid Google token", 400));
+        }
+        return next(new ErrorHandler(error.message || "Google authentication failed", 500));
     }
 });
