@@ -10,7 +10,7 @@ import {
     resendOTP,
     // googleLogin // Add this import
 } from '../controllers/auth.controller.js';
-import { verifyToken } from '../middlewares/auth.middleware.js';
+import { verifyToken } from '../middlewares/verifyToken.js';
 
 const router = express.Router();
 

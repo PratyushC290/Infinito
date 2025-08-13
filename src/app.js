@@ -8,6 +8,7 @@ import session from "express-session";
 import healthcheckRouter from "./routes/healthcheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import caRouter from "./routes/ca.routes.js";
+import userRouter from "./routes/user.routes.js";
 
 const app = express();
 app.use(cors({
@@ -58,6 +59,7 @@ app.use((req, res, next) => {
 app.use("/api/v1/healthcheck", healthcheckRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/ca", caRouter);
+app.use("/api/v1/user", userRouter);
 
 
 // Root route

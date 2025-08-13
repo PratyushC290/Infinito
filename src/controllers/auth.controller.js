@@ -508,7 +508,7 @@ export const loginWithOTP = CatchAsyncErrror(async (req, res, next) => {
             score: user.score
         };
 
-        console.log(`✅ User logged in with OTP: ${user.email} (IITP Student: ${user.isIITPStud})`);
+        console.log(`User logged in with OTP: ${user.email} (IITP Student: ${user.isIITPStud})`);
 
         res.status(200)
             .cookie("accessToken", accessToken, {
@@ -539,7 +539,6 @@ export const logout = CatchAsyncErrror(async (req, res, next) => {
     try {
         const userId = req.user?._id;
 
-        // Clear refresh token from database
         await User.findByIdAndUpdate(userId, {
             refreshToken: undefined
         });
