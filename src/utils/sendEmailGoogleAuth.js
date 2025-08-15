@@ -12,7 +12,7 @@ export const sendEmail = async ({ to, subject, template, data }) => {
   });
 
   // Render the EJS template
-  const templatePath = path.join(process.cwd(), 'views', 'emails', `${template}.ejs`);
+  const templatePath = path.join(process.cwd(), 'views', 'email', `${template}.ejs`);
   const html = await ejs.renderFile(templatePath, data);
 
   await transporter.sendMail({

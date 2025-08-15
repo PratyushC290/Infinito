@@ -45,10 +45,10 @@ const outlookServiceTransporter = nodemailer.createTransport({
 // Get appropriate transporter based on recipient email
 const getTransporter = (recipientEmail) => {
     if (isIITPEmail(recipientEmail)) {
-        console.log('📧 Using Outlook transporter for IITP email:', recipientEmail);
-        return outlookTransporter; // or outlookServiceTransporter
+        console.log('Using Outlook transporter for IITP email:', recipientEmail);
+        return outlookTransporter; 
     } else {
-        console.log('📧 Using Gmail transporter for regular email:', recipientEmail);
+        console.log('Using Gmail transporter for regular email:', recipientEmail);
         return gmailTransporter;
     }
 };
@@ -71,18 +71,18 @@ const getSenderInfo = (recipientEmail) => {
 // Verify transporters on startup
 gmailTransporter.verify((error, success) => {
     if (error) {
-        console.log('❌ Gmail transporter verification failed:', error.message);
+        console.log('Gmail transporter verification failed:', error.message);
     } else {
-        console.log('✅ Gmail email server is ready to send messages');
+        console.log('Gmail email server is ready to send messages');
     }
 });
 
 outlookTransporter.verify((error, success) => {
     if (error) {
-        console.log('❌ Outlook transporter verification failed:', error.message);
-        console.log('⚠️  Make sure OUTLOOK_USERNAME and OUTLOOK_PASSWORD are set in environment variables');
+        console.log('Outlook transporter verification failed:', error.message);
+        console.log('Make sure OUTLOOK_USERNAME and OUTLOOK_PASSWORD are set in environment variables');
     } else {
-        console.log('✅ Outlook email server is ready to send messages');
+        console.log('Outlook email server is ready to send messages');
     }
 });
 
@@ -218,7 +218,7 @@ const getEnhancedOTPTemplate = (otp, type, userData = {}) => {
 // Function to send OTP email with EJS template or fallback
 export const sendOTPEmail = async (email, otp, type = 'signup', userData = {}) => {
     try {
-        console.log(`📧 Attempting to send ${type} OTP to ${email} (IITP: ${isIITPEmail(email)})`);
+        console.log(`Attempting to send ${type} OTP to ${email} `);
         
         // Get appropriate transporter and sender info
         const transporter = getTransporter(email);
@@ -246,7 +246,7 @@ export const sendOTPEmail = async (email, otp, type = 'signup', userData = {}) =
         
         // Try to use EJS template first, fallback to enhanced HTML template
         if (fs.existsSync(templatePath)) {
-            console.log(`📄 Using EJS template: ${templateName}`);
+            console.log(`Using EJS template: ${templateName}`);
             
             const emailData = {
                 otp,
@@ -266,7 +266,7 @@ export const sendOTPEmail = async (email, otp, type = 'signup', userData = {}) =
                 html: await ejs.renderFile(templatePath, emailData)
             };
         } else {
-            console.log(`📄 Using enhanced HTML template (EJS not found)`);
+            console.log(`Using enhanced HTML template (EJS not found)`);
             emailContent = getEnhancedOTPTemplate(otp, type, { ...userData, email });
         }
 
@@ -280,10 +280,10 @@ export const sendOTPEmail = async (email, otp, type = 'signup', userData = {}) =
         };
 
         // Send email
-        console.log(`📤 Sending email using ${isIITPEmail(email) ? 'Outlook' : 'Gmail'} transporter...`);
+        console.log(`Sending email using ${isIITPEmail(email) ? 'Outlook' : 'Gmail'} transporter...`);
         const info = await transporter.sendMail(mailOptions);
         
-        console.log(`✅ ${type.toUpperCase()} OTP email sent successfully to ${email}:`, info.messageId);
+        console.log(`${type.toUpperCase()} OTP email sent successfully to ${email}:`, info.messageId);
         
         return {
             success: true,
@@ -294,7 +294,7 @@ export const sendOTPEmail = async (email, otp, type = 'signup', userData = {}) =
         };
 
     } catch (error) {
-        console.error(`❌ Error sending ${type} OTP email to ${email}:`, error);
+        console.error(`Error sending ${type} OTP email to ${email}:`, error);
         
         return {
             success: false,
@@ -348,7 +348,7 @@ export const sendWelcomeEmail = async (email, userData) => {
 
         const info = await transporter.sendMail(mailOptions);
         
-        console.log(`✅ Welcome email sent to ${email}:`, info.messageId);
+        console.log(`Welcome email sent to ${email}:`, info.messageId);
         
         return {
             success: true,
@@ -357,7 +357,7 @@ export const sendWelcomeEmail = async (email, userData) => {
         };
 
     } catch (error) {
-        console.error('❌ Error sending welcome email:', error);
+        console.error('Error sending welcome email:', error);
         return {
             success: false,
             message: 'Failed to send welcome email',
@@ -397,7 +397,7 @@ export const sendTestEmail = async (email) => {
 
         const info = await transporter.sendMail(mailOptions);
         
-        console.log(`✅ Test email sent to ${email} using ${isIITP ? 'Outlook' : 'Gmail'}:`, info.messageId);
+        console.log(`Test email sent to ${email} using ${isIITP ? 'Outlook' : 'Gmail'}:`, info.messageId);
         
         return {
             success: true,
@@ -408,7 +408,7 @@ export const sendTestEmail = async (email) => {
         };
 
     } catch (error) {
-        console.error('❌ Error sending test email:', error);
+        console.error('Error sending test email:', error);
         return {
             success: false,
             message: 'Failed to send test email',

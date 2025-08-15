@@ -2,11 +2,12 @@ import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
-import ErrorHandler from "../utils/ErrorHandler.js";
 import { CatchAsyncErrror } from "../middlewares/catchAsyncError.js";
-import { sendOTPEmail, isIITPEmail } from "../utils/emailService.js";
 import { OAuth2Client } from "google-auth-library";
 import { sendEmail } from '../utils/sendEmailGoogleAuth.js'
+import ErrorHandler from "../utils/ErrorHandler.js";
+import { sendOTPEmail } from "../utils/emails/index.js";
+import { isIITPEmail } from "../utils/emails/utils.js";
 // In-memory OTP storage (use Redis in production)
 const otpStorage = new Map();
 
@@ -20,128 +21,185 @@ function generateOTP(length = 6) {
     return otp;
 }
 
-// Store OTP with user data for signup
+// // Store OTP with user data for signup
+// function storeSignupOTP(email, userData, otp) {
+//     otpStorage.set(email, {
+//         otp: otp,
+//         type: 'signup',
+//         userData: userData, // Store signup data temporarily
+//         expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+//         isUsed: false,
+//         attempts: 0
+//     });
+// }
+
+// // Store OTP for login verification
+// function storeLoginOTP(email, otp) {
+//     otpStorage.set(email, {
+//         otp: otp,
+//         type: 'login',
+//         expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+//         isUsed: false,
+//         attempts: 0
+//     });
+// }
+
+// export const sendSignupOTP = CatchAsyncErrror(async (req, res, next) => {
+//     console.log("Processing signup OTP request");
+//     try {
+//         const { username, email, password } = req.body;
+
+//         if (!username || !email || !password ) {
+//             return next(new ErrorHandler("All required fields must be provided", 400));
+//         }
+
+//         // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+//         const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+
+//         if (!emailRegex.test(email)) {
+//             return next(new ErrorHandler("Please provide a valid gmail address", 400));
+//         }
+
+//         const normalizedEmail = email.toLowerCase().trim();
+
+
+//         const existingUser = await User.findOne({
+//           $or: [
+//             { email: normalizedEmail },
+//             { username: { $regex: `^${username.trim()}$`, $options: 'i' } } // case-insensitive exact match
+//           ]
+//         });
+
+//         if (existingUser) {
+//             return res.status(400).json({ message: "User already exists with this email or username" });
+//         }
+
+//         const existing = otpStorage.get(normalizedEmail);
+//         if (existing && existing.type === 'signup' && new Date() < existing.expiresAt && !existing.isUsed) {
+//             const timeLeft = Math.ceil((existing.expiresAt - new Date()) / 1000 / 60);
+//             return res.json({
+//                 success: false,
+//                 message: `An OTP is already active for this email. Please check your mail inbox or wait ${timeLeft} minutes for it to expire.`,
+//                 timeLeft: timeLeft
+//             });
+//         }
+//         const otp = generateOTP(6);
+//         const userData = {
+//             username: username.trim(),
+//             email: normalizedEmail,
+//             password: await bcrypt.hash(password, parseInt(process.env.SALT_ROUNDS) || 12),
+//             role: 'user',
+//         };
+//         storeSignupOTP(normalizedEmail, userData, otp);
+//         const emailResult = await sendOTPEmail(normalizedEmail, otp, 'signup', {
+//             fullname: userData.fullname,
+//             email: userData.email
+//         });
+//         if (!emailResult.success) {
+//             return next(new ErrorHandler("Failed to send verification email", 500));
+//         }
+
+//         console.log(` Signup OTP sent to ${normalizedEmail} `);
+
+//         res.status(200).json({
+//             success: true,
+//             message: "Verification code sent to your email. Please check your inbox.",
+//             email: normalizedEmail,
+//         });
+
+//     } catch (error) {
+//         console.error("Signup OTP Error:", error);
+//         return next(new ErrorHandler(error.message, 500));
+//     }
+// });
+
+
+// Store OTP with cooldown timestamp
 function storeSignupOTP(email, userData, otp) {
     otpStorage.set(email, {
         otp: otp,
         type: 'signup',
-        userData: userData, // Store signup data temporarily
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        userData: userData,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        lastSentAt: Date.now(), 
         isUsed: false,
         attempts: 0
     });
 }
 
-// Store OTP for login verification
-function storeLoginOTP(email, otp) {
-    otpStorage.set(email, {
-        otp: otp,
-        type: 'login',
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-        isUsed: false,
-        attempts: 0
-    });
-}
-
-// Send OTP for signup verification
 export const sendSignupOTP = CatchAsyncErrror(async (req, res, next) => {
     console.log("Processing signup OTP request");
     try {
-        const { username, email, password, fullname, collegeName, rollNo, isIITPStud } = req.body;
+        const { username, email, password } = req.body;
 
-        // Validate required fields
-        if (!username || !email || !password || !fullname) {
+        if (!username || !email || !password) {
             return next(new ErrorHandler("All required fields must be provided", 400));
         }
 
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
         if (!emailRegex.test(email)) {
-            return next(new ErrorHandler("Please provide a valid email address", 400));
+            return next(new ErrorHandler("Please provide a valid gmail address", 400));
         }
 
-        // Clean and normalize email
         const normalizedEmail = email.toLowerCase().trim();
 
-        // Check if it's an IITP email
-        const autoDetectedIITPStud = isIITPEmail(normalizedEmail);
-
-        // If email is from IITP domain, validate required IITP fields
-        if (autoDetectedIITPStud) {
-            if (!rollNo) {
-                return next(new ErrorHandler("Roll number is required for IITP students", 400));
-            }
-            // Validate roll number format for IITP (customize this regex as needed)
-            const rollNoRegex = /^\d{4}[A-Z]{2,4}\d{1,4}$/i; // Modified to accept 1-4 digits at the end
-            if (!rollNoRegex.test(rollNo)) {
-                return next(new ErrorHandler("Please provide a valid IITP roll number format (e.g., 2401CS39, 2021CS001)", 400));
-            }
-        }
-
+        // Check for existing user
         const existingUser = await User.findOne({
-            $or: [{ email: normalizedEmail }, { username }]
+            $or: [
+                { email: normalizedEmail },
+                { username: { $regex: `^${username.trim()}$`, $options: 'i' } }
+            ]
         });
-
         if (existingUser) {
-            if (existingUser.isEmailVerified) {
-                return next(new ErrorHandler("User already exists with this email or username", 400));
-            } else {
-                // Delete existing unverified user to allow re-registration
-                await User.findByIdAndDelete(existingUser._id);
-                console.log(`🗑️ Deleted existing unverified user: ${normalizedEmail}`);
-            }
+            return res.status(400).json({ message: "User already exists with this email or username" });
         }
 
-        // Check if there's already an active OTP
         const existing = otpStorage.get(normalizedEmail);
-        if (existing && existing.type === 'signup' && new Date() < existing.expiresAt && !existing.isUsed) {
-            const timeLeft = Math.ceil((existing.expiresAt - new Date()) / 1000 / 60);
-            return res.json({
+
+        // Check cooldown period of 45 seconds
+        if (existing && existing.lastSentAt && Date.now() - existing.lastSentAt < 45 * 1000) {
+            const waitTime = Math.ceil((45 * 1000 - (Date.now() - existing.lastSentAt)) / 1000);
+            return res.status(429).json({
                 success: false,
-                message: `An OTP is already active for this email. Please check your ${autoDetectedIITPStud ? 'Outlook' : 'email'} inbox or wait ${timeLeft} minutes for it to expire.`,
-                isIITPEmail: autoDetectedIITPStud,
-                timeLeft: timeLeft
+                message: `Please wait ${waitTime} seconds before requesting a new OTP.`
             });
         }
 
-        // Generate OTP
-        const otp = generateOTP(6);
+        // If there's already an unused OTP still valid
+        // if (existing && existing.type === 'signup' && new Date() < existing.expiresAt && !existing.isUsed) {
+        //     const timeLeft = Math.ceil((existing.expiresAt - new Date()) / 1000 / 60);
+        //     return res.json({
+        //         success: false,
+        //         message: `An OTP is already active for this email. Please check your mail inbox or wait ${timeLeft} minutes for it to expire.`,
+        //         timeLeft: timeLeft
+        //     });
+        // }
 
-        // Store signup data with OTP (auto-detect IITP status)
+        const otp = generateOTP(6);
         const userData = {
             username: username.trim(),
             email: normalizedEmail,
             password: await bcrypt.hash(password, parseInt(process.env.SALT_ROUNDS) || 12),
-            fullname: fullname.trim(),
-            collegeName: autoDetectedIITPStud ? 'IIT Patna' : (collegeName?.trim() || ''),
-            rollNo: autoDetectedIITPStud ? rollNo?.toUpperCase().trim() : (rollNo?.trim() || ''),
-            isIITPStud: autoDetectedIITPStud, // Auto-set based on email domain
             role: 'user',
         };
 
         storeSignupOTP(normalizedEmail, userData, otp);
 
-        // Send OTP email
         const emailResult = await sendOTPEmail(normalizedEmail, otp, 'signup', {
             fullname: userData.fullname,
             email: userData.email
         });
-
         if (!emailResult.success) {
             return next(new ErrorHandler("Failed to send verification email", 500));
         }
 
-        console.log(`📧 Signup OTP sent to ${normalizedEmail}: ${otp} (IITP: ${autoDetectedIITPStud})`); // Remove in production
+        console.log(`Signup OTP sent to ${normalizedEmail}`);
 
         res.status(200).json({
             success: true,
-            message: autoDetectedIITPStud
-                ? "Verification code sent to your IITP email. Please check your Outlook inbox."
-                : "Verification code sent to your email. Please check your inbox.",
+            message: "Verification code sent to your email. Please check your inbox.",
             email: normalizedEmail,
-            isIITPEmail: autoDetectedIITPStud,
-            autoSetIITPStud: autoDetectedIITPStud,
-            transporterUsed: emailResult.transporterUsed
         });
 
     } catch (error) {
@@ -150,7 +208,118 @@ export const sendSignupOTP = CatchAsyncErrror(async (req, res, next) => {
     }
 });
 
-// Verify signup OTP and create user
+
+
+// export const verifySignupOTP = CatchAsyncErrror(async (req, res, next) => {
+//     try {
+//         const { email, otp } = req.body;
+
+//         if (!email || !otp) {
+//             return next(new ErrorHandler("Email and OTP are required", 400));
+//         }
+
+//         const normalizedEmail = email.toLowerCase().trim();
+//         const storedData = otpStorage.get(normalizedEmail);
+
+//         if (!storedData || storedData.type !== 'signup') {
+//             return next(new ErrorHandler("No signup OTP found for this email", 400));
+//         }
+
+//         if (storedData.isUsed) {
+//             return next(new ErrorHandler("This OTP has already been used", 400));
+//         }
+
+//         if (new Date() > storedData.expiresAt) {
+//             otpStorage.delete(normalizedEmail);
+//             return next(new ErrorHandler("OTP has expired. Please request a new one", 400));
+//         }
+
+//         // Increment attempt counter
+//         storedData.attempts = (storedData.attempts || 0) + 1;
+
+//         if (storedData.attempts > 3) {
+//             otpStorage.delete(normalizedEmail);
+//             return next(new ErrorHandler("Too many failed attempts. Please request a new OTP", 400));
+//         }
+
+//         if (storedData.otp !== otp) {
+//             otpStorage.set(normalizedEmail, storedData);
+//             return next(new ErrorHandler(`Invalid OTP. ${4 - storedData.attempts} attempts remaining`, 400));
+//         }
+
+//         const userData = storedData.userData;
+//         const existingUser = await User.findOne({
+//             $or: [{ email: userData.email }, { username: userData.username }]
+//         });
+
+//         let user;
+//         if (existingUser && !existingUser.isEmailVerified) {
+//             user = await User.findByIdAndUpdate(existingUser._id, userData, { new: true });
+//         } else if (!existingUser) {
+//             user = await User.create(userData);
+//         } else {
+//             return next(new ErrorHandler("User already exists", 400));
+//         }
+
+//         storedData.isUsed = true;
+//         otpStorage.set(normalizedEmail, storedData);
+
+//         // Generate tokens
+//         const accessToken = jwt.sign(
+//             { userId: user._id },
+//             process.env.ACCESS_TOKEN_SECRET,
+//             { expiresIn: '15m' }
+//         );
+
+//         const refreshToken = jwt.sign(
+//             { userId: user._id },
+//             process.env.REFRESH_TOKEN_SECRET,
+//             { expiresIn: '7d' }
+//         );
+
+//         // Save refresh token to user
+//         user.refreshToken = refreshToken;
+//         await user.save({ validateBeforeSave: false });
+
+//         // Clean up OTP storage
+//         setTimeout(() => otpStorage.delete(normalizedEmail), 60000); // Delete after 1 minute
+
+//         const userResponse = {
+//             _id: user._id,
+//             username: user.username,
+//             email: user.email,
+//             role: user.role,
+//             isEmailVerified: user.isEmailVerified
+//         };
+
+//         const successMessage ="Account created and email verified successfully";
+
+//         console.log(` User created successfully: ${user.email} `);
+
+//         res.status(201)
+//             .cookie("accessToken", accessToken, {
+//                 httpOnly: true,
+//                 secure: process.env.NODE_ENV === "production",
+//                 maxAge: 15 * 60 * 1000 // 15 minutes
+//             })
+//             .cookie("refreshToken", refreshToken, {
+//                 httpOnly: true,
+//                 secure: process.env.NODE_ENV === "production",
+//                 maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+//             })
+//             .json({
+//                 success: true,
+//                 message: successMessage,
+//                 user: userResponse,
+//                 accessToken
+//             });
+
+//     } catch (error) {
+//         console.error("Verify signup OTP Error:", error);
+//         return next(new ErrorHandler(error.message, 500));
+//     }
+// });
+
 export const verifySignupOTP = CatchAsyncErrror(async (req, res, next) => {
     try {
         const { email, otp } = req.body;
@@ -188,36 +357,22 @@ export const verifySignupOTP = CatchAsyncErrror(async (req, res, next) => {
             return next(new ErrorHandler(`Invalid OTP. ${4 - storedData.attempts} attempts remaining`, 400));
         }
 
-        // OTP is valid, create user
+        storedData.isUsed = true;
+        otpStorage.set(normalizedEmail, storedData);
+
         const userData = storedData.userData;
-        userData.isEmailVerified = true;
-
-        // If email is verified and it's an IITP email, ensure isIITPStud is true
-        if (isIITPEmail(userData.email)) {
-            userData.isIITPStud = true;
-            userData.collegeName = 'IIT Patna';
-            console.log(`🎓 IITP student verification confirmed for: ${userData.email}`);
-        }
-
-        // Check if user already exists (in case of race condition)
         const existingUser = await User.findOne({
             $or: [{ email: userData.email }, { username: userData.username }]
         });
 
         let user;
         if (existingUser && !existingUser.isEmailVerified) {
-            // Update existing unverified user
             user = await User.findByIdAndUpdate(existingUser._id, userData, { new: true });
         } else if (!existingUser) {
-            // Create new user
             user = await User.create(userData);
         } else {
             return next(new ErrorHandler("User already exists", 400));
         }
-
-        // Mark OTP as used
-        storedData.isUsed = true;
-        otpStorage.set(normalizedEmail, storedData);
 
         // Generate tokens
         const accessToken = jwt.sign(
@@ -232,45 +387,35 @@ export const verifySignupOTP = CatchAsyncErrror(async (req, res, next) => {
             { expiresIn: '7d' }
         );
 
-        // Save refresh token to user
         user.refreshToken = refreshToken;
         await user.save({ validateBeforeSave: false });
 
-        // Clean up OTP storage
-        setTimeout(() => otpStorage.delete(normalizedEmail), 60000); // Delete after 1 minute
+        otpStorage.delete(normalizedEmail);
 
         const userResponse = {
             _id: user._id,
             username: user.username,
             email: user.email,
-            fullname: user.fullname,
             role: user.role,
-            isEmailVerified: user.isEmailVerified,
-            collegeName: user.collegeName,
-            rollNo: user.rollNo,
-            isIITPStud: user.isIITPStud
+            isEmailVerified: user.isEmailVerified
         };
 
-        const successMessage = isIITPEmail(user.email)
-            ? "Account created and IITP email verified successfully! You are now registered as an IIT Patna student."
-            : "Account created and email verified successfully";
-
-        console.log(`✅ User created successfully: ${user.email} (IITP Student: ${user.isIITPStud})`);
+        console.log(`User created successfully: ${user.email}`);
 
         res.status(201)
             .cookie("accessToken", accessToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                maxAge: 15 * 60 * 1000 // 15 minutes
+                maxAge: 15 * 60 * 1000
             })
             .cookie("refreshToken", refreshToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                maxAge: 7 * 24 * 60 * 60 * 1000
             })
             .json({
                 success: true,
-                message: successMessage,
+                message: "Account created and email verified successfully",
                 user: userResponse,
                 accessToken
             });
@@ -280,6 +425,10 @@ export const verifySignupOTP = CatchAsyncErrror(async (req, res, next) => {
         return next(new ErrorHandler(error.message, 500));
     }
 });
+
+
+
+
 
 // Send OTP for login (optional 2FA)
 export const sendLoginOTP = CatchAsyncErrror(async (req, res, next) => {
@@ -327,15 +476,11 @@ export const sendLoginOTP = CatchAsyncErrror(async (req, res, next) => {
             return next(new ErrorHandler("Failed to send login verification email", 500));
         }
 
-        console.log(`🔐 Login OTP sent to ${normalizedEmail}: ${otp} (IITP: ${isIITPEmail(normalizedEmail)})`); // Remove in production
 
         res.status(200).json({
             success: true,
-            message: isIITPEmail(normalizedEmail)
-                ? "Login verification code sent to your IITP email. Please check your Outlook inbox."
-                : "Login verification code sent to your email",
+            message: "Login verification code sent to your email",
             email: normalizedEmail,
-            isIITPEmail: isIITPEmail(normalizedEmail),
             transporterUsed: emailResult.transporterUsed
         });
 
@@ -362,9 +507,6 @@ export const login = CatchAsyncErrror(async (req, res, next) => {
             return next(new ErrorHandler("Invalid email or password", 401));
         }
 
-        if (!user.isEmailVerified) {
-            return next(new ErrorHandler("Please verify your email before logging in", 401));
-        }
 
         // Check password
         const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -402,7 +544,7 @@ export const login = CatchAsyncErrror(async (req, res, next) => {
             score: user.score
         };
 
-        console.log(`✅ User logged in successfully: ${user.email} (IITP Student: ${user.isIITPStud})`);
+        console.log(`User logged in successfully: ${user.email}`);
 
         res.status(200)
             .cookie("accessToken", accessToken, {
@@ -453,7 +595,6 @@ export const loginWithOTP = CatchAsyncErrror(async (req, res, next) => {
             return next(new ErrorHandler("OTP has expired", 400));
         }
 
-        // Increment attempt counter
         storedData.attempts = (storedData.attempts || 0) + 1;
 
         if (storedData.attempts > 3) {
@@ -508,7 +649,7 @@ export const loginWithOTP = CatchAsyncErrror(async (req, res, next) => {
             score: user.score
         };
 
-        console.log(`User logged in with OTP: ${user.email} (IITP Student: ${user.isIITPStud})`);
+        console.log(`User logged in with OTP: ${user.email} `);
 
         res.status(200)
             .cookie("accessToken", accessToken, {
@@ -523,7 +664,7 @@ export const loginWithOTP = CatchAsyncErrror(async (req, res, next) => {
             })
             .json({
                 success: true,
-                message: user.isIITPStud ? "Welcome back, IITP student!" : "Login successful with OTP",
+                message: "Login successful with OTP",
                 user: userResponse,
                 accessToken
             });
@@ -599,8 +740,6 @@ const client = new OAuth2Client({
 export const googleLogin = CatchAsyncErrror(async (req, res, next) => {
     try {
         const { credential } = req.body;
-        // console.log(req.body)
-        // console.log(credential)
         
         if (!credential) {
             return next(new ErrorHandler("Google credential is required", 400));
@@ -613,7 +752,6 @@ export const googleLogin = CatchAsyncErrror(async (req, res, next) => {
         
         
         const payload = ticket.getPayload();
-        console.log("\n\n\n helloo. adfa. ",payload)
         
         if (!payload) {
             return next(new ErrorHandler("Invalid Google token", 400));
@@ -642,43 +780,50 @@ export const googleLogin = CatchAsyncErrror(async (req, res, next) => {
                 counter++;
             }
 
-            // Auto-detect if it's an IITP email
-            const isIITPStudent = isIITPEmail(email);
 
             user = await User.create({
                 username,
                 email: email.toLowerCase(),
                 fullname: name,
-                isEmailVerified: true, // Google emails are pre-verified
+                isEmailVerified: true, 
                 role: "user",
-                collegeName: isIITPStudent ? 'IIT Patna' : '',
-                isIITPStud: isIITPStudent,
                 password: hashedPassword,
                 authProvider: 'google',
                 googleId: payload.sub
             });
+
+            // await sendEmail({
+            //          to: email,
+            //         subject: "Your Temporary Password",
+            //         html: `<p>Hello ${name},</p>
+            //         <p>We’ve created a temporary password for your account:</p>
+            //         <p><b>${tempPassword}</b></p>
+            //         <p>Please log in and change it as soon as possible.</p>`,
+            //         settings: { siteName: "Infinito" }
+            // });
+
             await sendEmail({
-                     to: email,
-                    subject: "Your Temporary Password",
-                    html: `<p>Hello ${name},</p>
-                    <p>We’ve created a temporary password for your account:</p>
-                    <p><b>${tempPassword}</b></p>
-                    <p>Please log in and change it as soon as possible.</p>`
+                to: email,
+                subject: "Google Login OTP",
+                template: "googleOtp",
+                data: {
+                    name,
+                    tempPassword,
+                    settings: { siteName: "Infinito" }
+                }
             });
 
-            
 
 
-            console.log(`🆕 New Google user created: ${email} (IITP: ${isIITPStudent})`);
+            console.log(`New Google user created: ${email} `);
         }else {
-            // Update existing user's Google info if needed
             if (!user.googleId) {
                 user.googleId = payload.sub;
                 user.authProvider = user.authProvider || 'google';
                 await user.save({ validateBeforeSave: false });
             }
             
-            console.log(`✅ Existing Google user logged in: ${email}`);
+            console.log(`Existing Google user logged in: ${email}`);
         }
 
         const accessToken = jwt.sign(
@@ -703,15 +848,9 @@ export const googleLogin = CatchAsyncErrror(async (req, res, next) => {
             fullname: user.fullname,
             role: user.role,
             isEmailVerified: user.isEmailVerified,
-            collegeName: user.collegeName,
-            rollNo: user.rollNo,
-            isIITPStud: user.isIITPStud,
-            score: user.score
         };
 
-        const welcomeMessage = user.isIITPStud 
-            ? "Welcome, IITP student!" 
-            : "Google login successful";
+        const welcomeMessage ="Google login successful";
 
         res.status(200)
             .cookie("accessToken", accessToken, {

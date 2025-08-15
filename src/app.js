@@ -9,10 +9,11 @@ import healthcheckRouter from "./routes/healthcheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import caRouter from "./routes/ca.routes.js";
 import userRouter from "./routes/user.routes.js";
+import { handleErrors } from "./utils/ErrorHandler.js";
 
 const app = express();
 app.use(cors({
-  origin: "http://localhost:5173", // React dev server
+  origin: "http://localhost:5173", 
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -25,7 +26,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, 
       httpOnly: true,
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
@@ -35,9 +36,9 @@ app.use(
 const originalUse = app.use.bind(app);
 app.use = function (path, ...handlers) {
   if (typeof path === "string") {
-    console.log("🧠 Mounting route:", path);
+    console.log("Mounting route:", path);
   } else {
-    console.log("🧠 Mounting middleware (no path)");
+    console.log("Mounting middleware (no path)");
   }
   return originalUse(path, ...handlers);
 };
@@ -61,6 +62,8 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/ca", caRouter);
 app.use("/api/v1/user", userRouter);
 
+
+app.use(handleErrors);
 
 // Root route
 app.get("/", (req, res) => {

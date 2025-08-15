@@ -6,6 +6,63 @@ const caSchema = new Schema({
     ref: "User",
     required: true,
   },
+  username: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  fullName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  collegeName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  collegeYear: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  por: {
+    type: String,
+    trim: true,
+  },
+  collegeAddress: {
+    type: String,
+    trim: true,
+    required:true
+  },
+  phoneNumber: {
+    type: String,
+    trim: true,
+    required:true
+  },
+  alternativeEmail: {
+    type: String,
+    trim: true,
+  },
+  howDidYouKnow: {
+    type: String,
+    enum: [
+      "Instagram",
+      "WhatsApp Channel",
+      "UNSTOP",
+      "Friends",
+      "News",
+      "YouTube",
+      "Facebook",
+      "Others",
+    ],
+    required: true,
+  },
   applicationStatement: {
     type: String,
     required: true,

@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
     },
     fullname: {
         type: String,
-        required: [true, "Full name is required"]
+        // required: [true, "Full name is required"]
     },
     role: {
         type: String,
@@ -34,6 +34,7 @@ const userSchema = new mongoose.Schema({
         default: false
     },
     collegeName: String,
+    address:String,
     rollNo: String,
     isIITPStud: {
         type: Boolean,
@@ -47,6 +48,10 @@ const userSchema = new mongoose.Schema({
     score: {
         type: Number,
         default: 0
+    },
+    caApplication: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Ca"
     }
 }, {
     timestamps: true
